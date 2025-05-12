@@ -9,7 +9,7 @@ This project focuses on two main tasks:
 - `Analyze_stockprice.Rmd`: Time series analysis and 10-day price forecasting using ARIMA/ETS models.
 - `Analyze_revenue.Rmd`: Basic financial performance metrics to support investment decisions.
 - `G06.xlsx`: Contains historical stock prices and serves as the basis for optimization problems.
-- `Stock_Analysis_Cointegration_vs_Optimization.ipynb`: Integrates cointegration tests, forecasting, and portfolio modeling.
+- `Stock_Analysis_Cointegration_vs_Optimization.ipynb`: Combines cointegration testing, VAR forecasting, and portfolio modeling.
 - `README.md`: Project overview and documentation.
 
 ## 📌 Objectives
@@ -23,7 +23,7 @@ This project focuses on two main tasks:
 
 - Time series forecasting with **ARIMA**, **Exponential Smoothing (ETS)**.
 - Portfolio optimization using **Markowitz Mean-Variance framework**.
-- Visualization and analysis via **R** and **Python**.
+- Visualization and analysis via **R**.
 - Excel-based solver for quick scenario testing.
 
 ## ✅ Outputs

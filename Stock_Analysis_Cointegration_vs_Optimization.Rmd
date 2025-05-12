@@ -1,0 +1,262 @@
+---
+title: "VAR"
+author: "anhthu"
+date: "2025-04-14"
+output: word_document
+---
+
+```{r}
+library(foreign)
+library(car)
+library(lmtest)
+library(zoo)
+library(sandwich)
+library(survival)
+library(AER)
+library(stargazer)
+library(ggplot2)
+library(caret)
+library(caTools)
+library(readxl)
+library(Metrics)
+library(TTR)
+library(htmltools)
+library(urca)
+library(forecast)
+library(readxl)
+library(MASS)
+library(strucchange)
+library(vars)
+```
+
+```{r}
+#IMPORT DATA
+logreturn <- read_excel("~/Đại Học/time series/logreturn.xlsx")
+save(logreturn,file="logreturn.rda")
+View(logreturn)
+```
+
+```{r}
+str(logreturn)
+```
+
+```{r}
+gr6 <- na.omit(logreturn[, c("VIP", "PVD", "FPT", "SGT")])
+```
+
+#đồng tích hợp
+#Kiểm tra đồng tích hợp của VIP và PVD
+```{r}
+VIP_PVD <- cbind(VIP = gr6$VIP, PVD = gr6$PVD)  
+
+# Xác định số trễ tối ưu
+VARselect(VIP_PVD, lag.max = 10, type = "const")$selection
+
+# Chạy kiểm định Johansen
+johansen_energy <- ca.jo(VIP_PVD, type = "trace", ecdet = "const", K = 2)
+summary(johansen_energy)
+```
+
+#Kiểm tra đồng tích hợp của FPT và SGT
+```{r}
+FPT_SGT <- cbind(FPT = gr6$FPT, SGT = gr6$SGT)  
+
+# Xác định số trễ tối ưu
+VARselect(FPT_SGT, lag.max = 10, type = "const")$selection
+
+# Chạy kiểm định Johansen
+johansen_tech <- ca.jo(FPT_SGT, type = "trace", ecdet = "const", K = 2)
+summary(johansen_tech)
+```
+
+#Kiểm tra đồng tích hợp của cả 4 mã cổ phiếu
+```{r}
+data_all <- cbind(gr6$VIP, gr6$PVD, gr6$FPT, gr6$SGT)
+colnames(data_all) <- c("VIP", "PVD", "FPT", "SGT")
+```
+
+```{r}
+VARselect(data_all, lag.max = 10, type = "const")$selection
+```
+
+```{r}
+johansen_all <- ca.jo(data_all, type = "trace", ecdet = "const", K = 2)
+summary(johansen_all)
+
+```
+
+#VAR
+```{r}
+#Xác định bậc trễ
+VARselect(gr6)
+```
+#bậc trễ là 1
+```{r}
+#ước lượng mô hình
+var1 = VAR(gr6, p=1, type = "const")
+summary(var1)
+```
+
+```{r}
+#kiểm định granger
+# Kiểm định VIP gây ra PVD
+grangertest(PVD ~ VIP, order = 1, data = gr6)  
+# Kiểm định VIP gây ra FPT
+grangertest(FPT ~ VIP, order = 1, data = gr6)
+# Kiểm định VIP gây ra SGT
+grangertest(SGT ~ VIP, order = 1, data = gr6)  
+
+# Kiểm định PVD gây ra VIP
+grangertest(VIP ~ PVD, order = 1, data = gr6)  
+# Kiểm định PVD gây ra FPT
+grangertest(FPT ~ PVD, order = 1, data = gr6)
+# Kiểm định PVD gây ra SGT
+grangertest(SGT ~ PVD, order = 1, data = gr6) 
+
+# Kiểm định FPT gây ra VIP
+grangertest(VIP ~ FPT, order = 1, data = gr6)  
+# Kiểm định FPT gây ra PVD
+grangertest(PVD ~ FPT, order = 1, data = gr6)
+# Kiểm định FPT gây ra SGT
+grangertest(SGT ~ FPT, order = 1, data = gr6) 
+
+# Kiểm định SGT gây ra VIP
+grangertest(VIP ~ SGT, order = 1, data = gr6)  
+# Kiểm định SGT gây ra PVD
+grangertest(PVD ~ SGT, order = 1, data = gr6)
+# Kiểm định SGT gây ra FPT
+grangertest(FPT ~ SGT, order = 1, data = gr6) 
+```
+```{r}
+#kiểm định phần dư
+serial.test(var1)
+```
+
+```{r}
+#dự báo var1
+forecast1 <-predict(var1)
+forecast1
+par(mar = c(4, 4, 1, 1))
+plot(forecast1)
+```
+```{r}
+#hàm phản ứng
+irf(var1)
+plot(irf(var1))
+```
+
+```{r}
+#phân rã phương sai
+fevd(var1)
+par(mar = c(4, 4, 1, 1))
+plot(fevd(var1))
+```
+
+```{r}
+#Dự báo cho từng chuỗi log_return theo VAR
+#Trích xuất giá trị dự báo log-return từ mô hình VAR
+rVIP.forecast1 = forecast1$fcst$VIP[,1] 
+rPVD.forecast1 = forecast1$fcst$PVD[,1]
+rFPT.forecast1 = forecast1$fcst$FPT[,1]
+rSGT.forecast1 = forecast1$fcst$SGT[,1]
+```
+
+```{r}
+#Chuỗi VIP
+TL_vip<-exp(rVIP.forecast1)
+# 2. Lấy giá cổ phiếu PVD tại thời điểm cuối cùng của năm 2024
+P0_vip <- 14.1   
+vip_2025 <- c(14.1, 14.1, 13.55, 13.5, 13.7, 13.8, 13.5, 13.9, 13.9, 14.1)
+n1 <- TL_vip[1] * P0_vip
+n2 <- TL_vip[2] * vip_2025[2]
+n3 <- TL_vip[3] * vip_2025[3]
+n4 <- TL_vip[4] * vip_2025[4]
+n5 <- TL_vip[5] * vip_2025[5]
+n6 <- TL_vip[6] * vip_2025[6]
+n7 <- TL_vip[7] * vip_2025[7]
+n8 <- TL_vip[8] * vip_2025[8]
+n9 <- TL_vip[9] * vip_2025[9]
+n10 <- TL_vip[10] * vip_2025[10]
+
+price_vip_forecast <- c(n1, n2, n3, n4, n5, n6, n7, n8, n9, n10)
+price_vip_forecast
+```
+
+
+```{r}
+#Chuỗi PVD
+TL_pvd<-exp(rPVD.forecast1)
+# 2. Lấy giá cổ phiếu PVD tại thời điểm cuối cùng của năm 2024
+P0_pvd <- 23.4   
+pvd_2025 <- c(23.25, 23.5, 22.95, 22.15, 22.15, 22.15, 22.15, 22.75, 22.4, 22.4)
+n1 <- TL_pvd[1] * P0_pvd
+n2 <- TL_pvd[2] * pvd_2025[2]
+n3 <- TL_pvd[3] * pvd_2025[3]
+n4 <- TL_pvd[4] * pvd_2025[4]
+n5 <- TL_pvd[5] * pvd_2025[5]
+n6 <- TL_pvd[6] * pvd_2025[6]
+n7 <- TL_pvd[7] * pvd_2025[7]
+n8 <- TL_pvd[8] * pvd_2025[8]
+n9 <- TL_pvd[9] * pvd_2025[9]
+n10 <- TL_pvd[10] * pvd_2025[10]
+
+price_pvd_forecast <- c(n1, n2, n3, n4, n5, n6, n7, n8, n9, n10)
+price_pvd_forecast
+```
+
+```{r}
+#Chuỗi FPT
+TL_fpt<-exp(rFPT.forecast1)
+# 2. Lấy giá cổ phiếu PVD tại thời điểm cuối cùng của năm 2024
+P0_fpt <- 152.5   
+fpt_2025 <- c(152,149,149.3,150.1,148.3,148.8,147.3,147.6,145.1,145.5)
+n1 <- TL_fpt[1] * P0_fpt
+n2 <- TL_fpt[2] * fpt_2025[2]
+n3 <- TL_fpt[3] * fpt_2025[3]
+n4 <- TL_fpt[4] * fpt_2025[4]
+n5 <- TL_fpt[5] * fpt_2025[5]
+n6 <- TL_fpt[6] * fpt_2025[6]
+n7 <- TL_fpt[7] * fpt_2025[7]
+n8 <- TL_fpt[8] * fpt_2025[8]
+n9 <- TL_fpt[9] * fpt_2025[9]
+n10 <- TL_fpt[10] * fpt_2025[10]
+
+price_fpt_forecast <- c(n1, n2, n3, n4, n5, n6, n7, n8, n9, n10)
+price_fpt_forecast
+```
+
+```{r}
+#Chuỗi SGT
+TL_sgt<-exp(rFPT.forecast1)
+# 2. Lấy giá cổ phiếu PVD tại thời điểm cuối cùng của năm 2024
+P0_sgt <- 17.25   
+sgt_2025 <- c(17.2,16.9,16.9,17.25,17.4,17.95,18,18.05,18.9,19.1)
+n1 <- TL_sgt[1] * P0_sgt
+n2 <- TL_sgt[2] * sgt_2025[2]
+n3 <- TL_sgt[3] * sgt_2025[3]
+n4 <- TL_sgt[4] * sgt_2025[4]
+n5 <- TL_sgt[5] * sgt_2025[5]
+n6 <- TL_sgt[6] * sgt_2025[6]
+n7 <- TL_sgt[7] * sgt_2025[7]
+n8 <- TL_sgt[8] * sgt_2025[8]
+n9 <- TL_sgt[9] * sgt_2025[9]
+n10 <- TL_sgt[10] * sgt_2025[10]
+
+price_sgt_forecast <- c(n1, n2, n3, n4, n5, n6, n7, n8, n9, n10)
+price_sgt_forecast
+```
+
+```{r}
+mape(price_vip_forecast,vip_2025)
+mape(price_pvd_forecast,pvd_2025)
+mape(price_fpt_forecast,fpt_2025)
+mape(price_sgt_forecast,sgt_2025)
+```
+
+```{r}
+arima_pvd <- c(23.35972,23.45707,23.45631,23.41786,23.48236,23.41167,23.45439,23.45853,23.41075,23.48035)
+mape(arima_pvd,pvd_2025)
+```
+
+
+

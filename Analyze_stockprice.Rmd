@@ -1,0 +1,230 @@
+---
+title: "stockprice.for.arima"
+author: "anhthu"
+date: "2025-03-31"
+output: word_document
+---
+```{r}
+library(readxl)
+library(urca)
+```
+
+
+```{r}
+#import data 
+time_series <- read_excel("time.series.xlsx", 
+    sheet = "Stockprice")
+View(time_series)
+save(time_series,file="11226148_stockprice.rda")
+attach(time_series)
+```
+
+#chuỗi price
+```{r}
+summary(ur.df(Price,type = "trend",lag = 0))
+```
+
+
+```{r}
+#kiểm định tính dừng xu thế
+summary(ur.df(Price,type = "trend", selectlags = "AIC"))
+```
+#gia tri kiem dinh ADF = -1.4754 > -3.98 => chua bac bo H0 => chuoi khong dung 
+#Giá trị thống kê (phi2, phi3) cũng không vượt qua giá trị tới hạn tương ứng, điều này củng cố nhận định chuỗi không dừng. 
+
+
+```{r}
+summary(ur.df(diff(Price), type = "trend", selectlags = "AIC"))
+```
+#chuỗi dừng sai phân 
+
+```{r}
+summary(ur.df(Price, type = "none", selectlags = "AIC"))
+```
+#0.1151>-2.58 => chuỗi không dừng
+
+```{r}
+summary(ur.df(diff(Price), type = "none", selectlags = "AIC"))
+```
+
+
+```{r}
+summary(ur.df(Price, type = "drift", selectlags = "AIC"))
+```
+#-2.1097 > cả 3 => chuỗi ko dừng 
+```{r}
+summary(ur.df(diff(Price), type = "drift", selectlags = "AIC"))
+```
+
+```{r}
+summary(ur.df(diff(Price),type = "none",lag = 0))
+```
+```{r}
+summary(ur.df(diff(Price),type = "drift",lag = 0))
+```
+#cả 3 đều lấy sai phân b1 mới dừng
+#tt trong diff trend ko có ý nghĩa nên chuyển sang drift xét hệ số chặn ko có ý nghĩa nên chọn none 
+
+#Vẽ ACF và PACF 
+```{r}
+acf(diff(Price), main = "ACF")   
+pacf(diff(Price), main = "PACF") 
+```
+
+
+#ARIMA
+```{r}
+reg.arima112<- arima(Price,order = c(1,1,2))
+reg.arima112
+```
+
+```{r}
+reg.arima111<- arima(Price,order = c(1,1,1))
+reg.arima111
+```
+
+```{r}
+reg.arima511<- arima(Price,order = c(5,1,1))
+reg.arima511
+```
+```{r}
+reg.arima515<- arima(Price,order = c(5,1,5))
+reg.arima515
+```
+```{r}
+reg.arima512<- arima(Price,order = c(5,1,2))
+reg.arima512
+```
+```{r}
+reg.arima115<- arima(Price,order = c(1,1,5))
+reg.arima115
+```
+```{r}
+reg.arima111<- arima(Price,order = c(1,1,1))
+reg.arima111
+```
+
+
+```{r}
+library(forecast)
+library(zoo)
+forecast_values <- forecast(reg.arima515, h = 10)
+print(forecast_values)
+```
+#chuỗi log-return
+#kiểm định ADF
+```{r}
+time_series <- na.omit(time_series)
+View(time_series)
+summary(ur.df(time_series$`Log-return`,type = "trend", selectlags = "AIC"))
+```
+#chuỗi dừng, tt ko có ý nghĩa 
+```{r}
+summary(ur.df(time_series$`Log-return`,type = "drift", selectlags = "AIC"))
+```
+#dừng mà hệ số chặn ko có ý nghĩa thống kê
+
+```{r}
+summary(ur.df(time_series$`Log-return`,type = "none", selectlags = "AIC"))
+```
+
+#vẽ acf pacf
+```{r}
+acf(time_series$`Log-return`, main = "ACF")   
+pacf(time_series$`Log-return`, main = "PACF") 
+```
+#Arima
+```{r}
+reg.arima100<- arima(time_series$`Log-return`,order = c(1,0,0))
+reg.arima100
+```
+
+```{r}
+reg.arima101<- arima(time_series$`Log-return`,order = c(1,0,1))
+reg.arima101
+```
+
+```{r}
+reg.arima303<- arima(time_series$`Log-return`,order = c(3,0,3))
+reg.arima303
+```
+```{r}
+reg.arima501<- arima(time_series$`Log-return`,order = c(5,0,1))
+reg.arima501
+```
+```{r}
+reg.arima505<- arima(time_series$`Log-return`,order = c(5,0,5))
+reg.arima505
+```
+
+```{r}
+reg.arima000<- arima(time_series$`Log-return`,order = c(1,0,5))
+reg.arima000
+```
+
+
+```{r}
+forecast_logreturn <- forecast(reg.arima303, h = 10)
+print(forecast_logreturn)
+```
+#arch/garch
+```{r}
+library(rugarch)
+```
+
+```{r}
+#vẽ đồ thị phần dư
+resid_arima <- residuals(reg.arima303)
+
+# Đồ thị chuỗi phần dư theo thời gian
+plot(resid_arima, main = "Residuals from ARIMA(3,0,3)", ylab = "Residuals", col = "darkred")
+
+# Biểu đồ PACF của phần dư
+pacf(resid_arima^2)
+par(mfrow = c(1, 1))
+```
+```{r}
+library(FinTS)
+Box.test(resid_arima^2, lag=10, type="Ljung-Box")  # Kiểm tra tự tương quan trong phần dư bình phương
+library(tseries)
+arch1 <- ArchTest(resid_arima,lags=4)  # Thực hiện LM-test cho hiệu ứng ARCH
+arch1
+```
+#pvalue = 0.01062 < 0.05 => xác nhận có tự tương quan trong phần dư bình phương
+#p-value < 0.05, có bằng chứng thống kê cho sự tồn tại của hiệu ứng ARCH với bậc cao hơn (ARCH(4))
+```{r}
+library(rugarch)
+
+# Xây dựng mô hình ARCH(4)
+arch_model <- ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(4, 0)),
+                         mean.model = list(armaOrder = c(3, 3), include.mean = TRUE))
+
+# Ước lượng mô hình
+arch_fit <- ugarchfit(spec = arch_model, data = time_series$`Log-return`)
+show(arch_fit)
+coef(arch_fit)
+
+# Dự báo 10 ngày tới
+arch_forecast <- ugarchforecast(arch_fit, n.ahead = 10)
+
+# In ra kết quả dự báo volatility
+forecast_volatility <- sigma(arch_forecast)
+print(forecast_volatility)
+```
+```{r}
+autoplot(reg.arima303)
+resid_arima303 <- residuals(reg.arima303)
+Box.test(resid_arima303, lag = 10, type = "Ljung-Box")
+```
+```{r}
+autoplot(reg.arima515)
+resid_arima515 <- residuals(reg.arima515)
+Box.test(resid_arima515, lag = 10, type = "Ljung-Box")
+```
+
+
+
+
+
+
+

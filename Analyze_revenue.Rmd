@@ -1,0 +1,427 @@
+---
+title: "time.series"
+author: "anhthu"
+date: "2025-02-07"
+output: word_document
+---
+```{r}
+library(ggplot2)
+library(readxl)
+library(dplyr)
+library(Metrics)
+library(forecast)
+```
+
+
+```{r}
+#import data
+net_revenue <- read_excel("time.series.xlsx")
+View(net_revenue)
+save(net_revenue,file = "11226148_revenue.rda")
+```
+
+```{r}
+net_revenue_1 <- ts(net_revenue$`Doanh thu thuần`,start = c(2010,1),end = c(2023,4),frequency=4)
+```
+
+```{r}
+#tao bien xu the thoi gian
+t <- seq_along(net_revenue_1)
+```
+
+```{r}
+#vẽ đồ thị theo thời gian cho chuỗi doanh thu 
+# Tính tổng doanh thu theo năm
+doanh_thu_nam <- net_revenue %>%
+  group_by(Year) %>%
+  summarise(TongDT = sum(`Doanh thu thuần`, na.rm = TRUE))
+
+# Vẽ cột tổng doanh thu theo năm
+ggplot(doanh_thu_nam, aes(x = Year, y = TongDT)) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  labs(
+    title = "Doanh thu thuần theo năm",
+    x = "Năm",
+    y = "Tổng doanh thu thuần"
+  ) +
+   scale_x_continuous(breaks = seq(2010, 2024, by = 1)) +
+  theme_minimal()
+```
+
+```{r}
+#LIN - LIN 
+reg1 <- lm(net_revenue_1~t)
+summary(reg1)
+```
+
+```{r}
+#toan mau
+rmse(net_revenue_1,fitted(reg1))
+mape(net_revenue_1,fitted(reg1))
+```
+
+```{r}
+#4qs cuoi
+actual_last4 <- tail(net_revenue_1,4)
+predicted_last4<- tail(fitted(reg1),4)
+rmse(actual_last4,predicted_last4)
+mape(actual_last4,predicted_last4)
+```
+
+```{r}
+#LIN-LOG
+reg2 <- lm(net_revenue_1~log(t))
+summary(reg2)
+rmse(net_revenue_1,fitted(reg2))
+mape(net_revenue_1,fitted(reg2))
+```
+
+```{r}
+predicted_last4_2<- tail(fitted(reg2),4)
+rmse(actual_last4,predicted_last4_2)
+mape(actual_last4,predicted_last4_2)
+```
+
+```{r}
+#LOG - LIN
+reg3 <- lm(log(net_revenue_1)~t)
+summary(reg3)
+rmse(net_revenue_1,exp(fitted(reg3)))
+mape(net_revenue_1,exp(fitted(reg3)))
+```
+
+```{r}
+predicted_last4_3<- exp(tail(fitted(reg3),4))
+rmse(actual_last4,predicted_last4_3)
+mape(actual_last4,predicted_last4_3)
+```
+
+```{r}
+#LOG - LOG
+reg4 <- lm(log(net_revenue_1)~log(t))
+summary(reg4)
+rmse(net_revenue_1,exp(fitted(reg4)))
+mape(net_revenue_1,exp(fitted(reg4)))
+```
+
+```{r}
+predicted_last4_4<- exp(tail(fitted(reg4),4))
+rmse(actual_last4,predicted_last4_4)
+mape(actual_last4,predicted_last4_4)
+```
+
+```{r}
+#Tao bien gia mua vu theo quy
+s2 <- c(rep(c(0,1,0,0), length.out = 56))
+s3 <- c(rep(c(0,0,1,0), length.out = 56))
+s4 <- c(rep(c(0,0,0,1), length.out = 56))
+```
+
+```{r}
+#HOI QUY XU THE THOI GIAN TUYEN TINH + MUA VU, DANG CONG
+reg5 <- lm(net_revenue_1 ~ t + s2+s3+s4)
+summary(reg5)
+```
+
+```{r}
+rmse(net_revenue_1,fitted(reg5))
+mape(net_revenue_1,fitted(reg5))
+```
+
+```{r}
+predicted_last4_5<- tail(fitted(reg5),4)
+rmse(actual_last4,predicted_last4_5)
+mape(actual_last4,predicted_last4_5)
+```
+
+```{r}
+#HOI QUY XU THE THOI GIAN TUYEN TINH + MUA VU, DANG NHAN
+reg6 <- lm(net_revenue_1~t +t*s2 + t*s3+t*s4)
+summary(reg6)
+```
+
+```{r}
+rmse(net_revenue_1,fitted(reg6))
+mape(net_revenue_1,fitted(reg6))
+```
+
+```{r}
+predicted_last4_6<- tail(fitted(reg6),4)
+rmse(actual_last4,predicted_last4_6)
+mape(actual_last4,predicted_last4_6)
+```
+
+```{r}
+#HỒI QUY VỚI BIẾN GIẢ MÙA VỤ
+reg7 <- lm(net_revenue_1~s4+s2+s3)
+summary (reg7)
+```
+```{r}
+rmse(net_revenue_1,fitted(reg7))
+mape(net_revenue_1,fitted(reg7))
+```
+
+```{r}
+#HỒI QUY THEO XU THẾ THỜI GIAN KHÔNG TUYẾN TÍNH DẠNG CỘNG 
+reg8 <- lm(log(net_revenue_1)~t +s2 + s3+s4)
+summary(reg8)
+```
+
+```{r}
+rmse(net_revenue_1,exp(fitted(reg8)))
+mape(net_revenue_1,exp(fitted(reg8)))
+```
+
+```{r}
+#HỒI QUY THEO XU THẾ THỜI GIAN KHÔNG TUYẾN TÍNH VÀ MÙA VỤ DẠNG NHÂN
+reg9 <- lm(log(net_revenue_1)~t +t*s2 + t*s3+t*s4)
+summary(reg9)
+```
+
+```{r}
+rmse(net_revenue_1,exp(fitted(reg9)))
+mape(net_revenue_1,exp(fitted(reg9)))
+```
+
+```{r}
+hw_add <- HoltWinters(net_revenue_1, seasonal = "additive")
+hw_add
+```
+```{r}
+rmse(net_revenue_1,fitted(hw_add))
+mape(net_revenue_1,fitted(hw_add))
+```
+
+```{r}
+hw_mul <- HoltWinters(net_revenue_1, seasonal = "m")
+hw_mul
+```
+```{r}
+rmse(netrevenue_1,fitted(hw_mul))
+mape(netrevenue_1,fitted(hw_mul))
+```
+
+
+```{r}
+#tạo biến t mới cho năm 2024
+t_2024 <- (length(t) + 1):(length(t) + 4)
+```
+
+# Dự báo giá trị năm 2024 và tính rmse, mape so với năm 2024
+
+```{r}
+predicted_2024_reg1 <- predict(reg1, newdata = data.frame(t = t_2024))
+actual_2024 <- c(1.75553, 2.25392, 2.43822, 2.78884)
+
+# RMSE
+rmse <- sqrt(mean((predicted_2024_reg1 - actual_2024)^2))
+
+# MAPE
+mape <- mean(abs((predicted_2024_reg1 - actual_2024) / actual_2024)) 
+
+# In kết quả
+cat("RMSE:", round(rmse, 4), "\n")
+cat("MAPE:", round(mape, 2), "\n")
+```
+
+```{r}
+predicted_2024_reg2 <- predict(reg2, newdata = data.frame(t = t_2024))
+
+# RMSE
+rmse2 <- sqrt(mean((predicted_2024_reg2 - actual_2024)^2))
+
+# MAPE
+mape2 <- mean(abs((predicted_2024_reg2 - actual_2024) / actual_2024)) 
+
+# In kết quả
+rmse2
+mape2
+```
+
+```{r}
+predicted_2024_reg3 <- predict(reg3, newdata = data.frame(t = t_2024))
+
+# RMSE
+rmse3 <- sqrt(mean((predicted_2024_reg3 - actual_2024)^2))
+
+# MAPE
+mape3 <- mean(abs((predicted_2024_reg3 - actual_2024) / actual_2024)) 
+
+# In kết quả
+rmse3
+mape3
+```
+
+```{r}
+predicted_2024_reg4 <- predict(reg4, newdata = data.frame(t = t_2024))
+
+# RMSE
+rmse4 <- sqrt(mean((predicted_2024_reg4 - actual_2024)^2))
+
+# MAPE
+mape4 <- mean(abs((predicted_2024_reg4 - actual_2024) / actual_2024)) 
+
+# In kết quả
+rmse4
+mape4
+```
+
+```{r}
+# Dự báo cho Q1, Q2, Q3, Q4/2024 → tạo biến s2, s3, s4 cho đúng
+s2_2024 <- c(0,1,0,0)
+s3_2024 <- c(0,0,1,0)
+s4_2024 <- c(0,0,0,1)
+
+newdata_2024 <- data.frame(
+  t = t_2024,
+  s2 = s2_2024,
+  s3 = s3_2024,
+  s4 = s4_2024
+)
+```
+
+
+```{r}
+predicted_2024_reg5 <- predict(reg5, newdata = newdata_2024)
+
+# RMSE
+rmse5 <- sqrt(mean((predicted_2024_reg5 - actual_2024)^2))
+
+# MAPE
+mape5 <- mean(abs((predicted_2024_reg5 - actual_2024) / actual_2024)) 
+
+# In kết quả
+rmse5
+mape5
+```
+
+```{r}
+predicted_2024_reg6 <- predict(reg6, newdata = newdata_2024)
+
+# RMSE
+rmse6 <- sqrt(mean((predicted_2024_reg6 - actual_2024)^2))
+
+# MAPE
+mape6 <- mean(abs((predicted_2024_reg6 - actual_2024) / actual_2024)) 
+
+# In kết quả
+rmse6
+mape6
+```
+
+```{r}
+predicted_2024_reg7 <- predict(reg7, newdata = newdata_2024)
+predicted_2024_reg7
+
+# RMSE
+rmse7 <- sqrt(mean((predicted_2024_reg7 - actual_2024)^2))
+
+# MAPE
+mape7 <- mean(abs((predicted_2024_reg7 - actual_2024) / actual_2024)) 
+
+# In kết quả
+rmse7
+mape7
+```
+
+```{r}
+predicted_2024_reg8 <- predict(reg8, newdata = newdata_2024)
+
+# RMSE
+rmse8 <- sqrt(mean((predicted_2024_reg8 - actual_2024)^2))
+
+# MAPE
+mape8 <- mean(abs((predicted_2024_reg8 - actual_2024) / actual_2024)) 
+
+# In kết quả
+rmse8
+mape8
+```
+
+```{r}
+predicted_2024_reg9 <- predict(reg9, newdata = newdata_2024)
+
+# RMSE
+rmse9 <- sqrt(mean((predicted_2024_reg9 - actual_2024)^2))
+
+# MAPE
+mape9 <- mean(abs((predicted_2024_reg9 - actual_2024) / actual_2024)) 
+
+# In kết quả
+rmse9
+mape9
+```
+
+```{r}
+predictions_hw_add <- forecast(hw_add, h = 4)$mean
+predictions_hw_add
+rmse_hw_add_2024 <- sqrt(mean((actual_2024 - predictions_hw_add)^2))
+print(rmse_hw_add_2024)
+```
+
+```{r}
+mape_hw_add <- mean(abs((predictions_hw_add - actual_2024) / actual_2024)) 
+mape_hw_add
+```
+
+
+```{r}
+predictions_hw_mul <- forecast(hw_mul, h = 4)$mean
+rmse_hw_mul_2024 <- sqrt(mean((actual_2024 - predictions_hw_mul)^2))
+print(rmse_hw_mul_2024)
+```
+
+```{r}
+mape_hw_mul <- mean(abs((predictions_hw_mul - actual_2024) / actual_2024)) 
+mape_hw_mul
+```
+
+#ước lượng lại với toàn bộ dữ liệu để dự báo cho 2025 
+```{r}
+net_rev <- ts(net_revenue$`Doanh thu thuần`,start = c(2010,1),end = c(2024,4),frequency=4)
+```
+
+```{r}
+#tao bien xu the thoi gian
+tt <- seq_along(net_rev)
+```
+
+```{r}
+#Tao bien gia mua vu theo quy
+ss2 <- c(rep(c(0,1,0,0), length.out = 60))
+ss3 <- c(rep(c(0,0,1,0), length.out = 60))
+ss4 <- c(rep(c(0,0,0,1), length.out = 60))
+reg11 <- lm(net_rev~ss4+ss2+ss3)
+summary (reg11)
+```
+```{r}
+# Dự báo 4 quý 2025
+ss2_2025 <- c(0, 1, 0, 0)
+ss3_2025 <- c(0, 0, 1, 0)
+ss4_2025 <- c(0, 0, 0, 1)
+
+newdata_2025 <- data.frame(
+  ss2 = ss2_2025,
+  ss3 = ss3_2025,
+  ss4 = ss4_2025
+)
+
+forecast_2025 <- predict(reg11, newdata = newdata_2025)
+forecast_2025
+```
+
+```{r}
+reg12 <- HoltWinters(net_rev, seasonal = "additive")
+reg12
+```
+```{r}
+forecast_hw_2025 <- forecast(reg12, h = 4)
+forecast_hw_2025
+```
+
+
+
+
+
+
+
